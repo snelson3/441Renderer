@@ -243,18 +243,18 @@ class Screen
 
 
 
-        double v5r = findc(i->getRed(0),i->getRed(1),v1.X,v2.X,v5x);
+        double v5r = findc(i->getRed(0),i->getRed(1),v1.Y,v2.Y,y);
 
 
-        double v6r = findc(i->getRed(1),i->getRed(2),v2.X,v3.X,v6x);
+        double v6r = findc(i->getRed(1),i->getRed(2),v2.Y,v3.Y,y);
 
-        if (x==332 && y == 321){
-        cerr<<"*****************"<<endl;
-        cerr<<"X1 "<<v2.X<<" Y1 "<<i->getRed(1)<<endl;
-        cerr<<"X2 "<<v3.X<<" Y2 "<<i->getRed(2)<<endl;
-        cerr<<"Target X "<<v6x<<endl;
-        cerr<<"Interpolated Y "<<v6r<<endl;
-}
+//         if (x==332 && y == 321){
+//         cerr<<"*****************"<<endl;
+//         cerr<<"X1 "<<v2.X<<" Y1 "<<i->getRed(1)<<endl;
+//         cerr<<"X2 "<<v3.X<<" Y2 "<<i->getRed(2)<<endl;
+//         cerr<<"Target X "<<v6x<<endl;
+//         cerr<<"Interpolated Y "<<v6r<<endl;
+// }
 
         double v4r = findc(v5r,v6r,v5x,v6x,x);
 
@@ -267,28 +267,28 @@ class Screen
         // cerr<<"V6r"<<v6r<<endl;
 
 //that must mean it is interpolating the color to be 0 or something
-        double v5u = findc(i->getBlue(0),i->getBlue(1),v1.X,v2.X,v5x);
-        double v6u = findc(i->getBlue(1),i->getBlue(2),v2.X,v3.X,v6x);
+        double v5u = findc(i->getBlue(0),i->getBlue(1),v1.Y,v2.Y,y);
+        double v6u = findc(i->getBlue(1),i->getBlue(2),v2.Y,v3.Y,y);
         double v4u = findc(v5u,v6u,v5x,v6x,x);
 
-        double v5g = findc(i->getGreen(0),i->getGreen(1),v1.X,v2.X,v5x);
-        double v6g = findc(i->getGreen(1),i->getGreen(2),v2.X,v3.X,v6x);
+        double v5g = findc(i->getGreen(0),i->getGreen(1),v1.Y,v2.Y,y);
+        double v6g = findc(i->getGreen(1),i->getGreen(2),v2.Y,v3.Y,y);
         double v4g = findc(v5g,v6g,v5x,v6x,x);
 
            this->setRed(v4r, x, y);
            this->setBlue(v4u, x, y);
            this->setGreen(v4g, x, y);
 
-           if (x==332 && y == 321){
-        cerr<<"*****************"<<endl;
-        cerr<<"V1("<<v1.X<<","<<v1.Y<<","<<v1.Z<<")"<<endl;
-        cerr<<"V2("<<v2.X<<","<<v2.Y<<","<<v2.Z<<")"<<endl;
-        cerr<<"V3("<<v3.X<<","<<v3.Y<<","<<v3.Z<<")"<<endl;
-        cerr<<"v4("<<x<<","<<y<<")"<<endl;
-        cerr<<"v5x "<<v5x << " v6x "<<v6x<<endl;
-        cerr<<"v5r "<<v5r<<" v6r "<<v6r<<" v4r "<<endl;
-        cerr<<"v1r "<<i->getRed(0)<<" v2r "<<i->getRed(1)<<" v3r "<<i->getRed(2)<<endl;
-}
+//            if (x==332 && y == 321){
+//         cerr<<"*****************"<<endl;
+//         cerr<<"V1("<<v1.X<<","<<v1.Y<<","<<v1.Z<<")"<<endl;
+//         cerr<<"V2("<<v2.X<<","<<v2.Y<<","<<v2.Z<<")"<<endl;
+//         cerr<<"V3("<<v3.X<<","<<v3.Y<<","<<v3.Z<<")"<<endl;
+//         cerr<<"v4("<<x<<","<<y<<")"<<endl;
+//         cerr<<"v5x "<<v5x << " v6x "<<v6x<<endl;
+//         cerr<<"v5r "<<v5r<<" v6r "<<v6r<<" v4r "<<endl;
+//         cerr<<"v1r "<<i->getRed(0)<<" v2r "<<i->getRed(1)<<" v3r "<<i->getRed(2)<<endl;
+// }
          // this->setRed(111,x,y);
          // this->setBlue(111,x,y);
          // this->setGreen(111,x,y);
@@ -492,7 +492,7 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
           }
           else
           {
-            i->setV(&v2,&v3,&v1);
+            i->setV(&v3,&v1,&v2);
           }
           if (v2.Y < v1.Y)
             writeFlatTop(v1,v2,v3,screen,i);
@@ -508,7 +508,9 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
           }
           else
           {
-            i->setV(&v3,&v1,&v2);
+            cerr<<"THIS SHOULD RUN";
+            i->setV(&v2,&v3,&v1);
+            debugOt(v1,v2,v3,i);
           }
           if (v2.Y < v1.Y)
             writeFlatTop(v1,v2,v3,screen,i);
@@ -594,14 +596,50 @@ int main()
    screen.width = 1000;
    screen.height = 1000;
 
+   double p1x, p1y, p2x, p2y, p3x, p3y;
+
    // YOUR CODE GOES HERE TO DEPOSIT TRIANGLES INTO PIXELS USING THE SCANLINE ALGORITHM
    int e = 0;
   for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i) 
   {
-    if (e == 1) continue;
-    i->X[0] = 400; i->X[1] = 400; i->X[2] = 200;
-    i->Y[0] = 500; i->Y[1] = 100; i->Y[2] = 300; //I think it's something to do with the y value
-    i->Z[0] = 100; i->Z[1] = 100; i->Z[2] = 100;//I'm losing Z[2] what the fuck,
+    // if (e == 1) continue;
+
+    // p1x = 50.0;
+    // p1y = 90.0;
+    // p2x = 40.0;
+    // p2y = 40.0;
+    // p3x = 60.0;
+    // p3y = 40.0;
+
+
+    // i->setPT1(p1x,p1y,-1); ///   123  132  213   231  Ω  312  321
+    // i->setPT2(p2x,p2y,-1);
+    // i->setPT3(p3x,p3y,-1);///l..ll   //0.,0
+    // depositTriangle(i,screen);
+
+    // i->setPT1(p1x+100,p1y+100,-1); ///   132  213   231  Ω  312  321
+    // i->setPT3(p2x+100,p2y+100,-1);  
+    // i->setPT2(p3x+100,p3y+100,-1);///l..ll   /100,100
+    //  depositTriangle(i,screen);
+
+    // i->setPT2(p1x+200,p1y+200,-1); ///    213   231  Ω  312  321
+    // i->setPT1(p2x+200,p2y+200,-1);
+    // i->setPT3(p3x+200,p3y+200,-1);///l..ll   /20
+    // depositTriangle(i,screen);
+
+    // i->setPT2(p1x+300,p1y+300,-1); ///   231  Ω  312  321
+    // i->setPT3(p2x+300,p2y+300,-1);
+    // i->setPT1(p3x+300,p3y+300,-1);///l..ll  /3
+    // depositTriangle(i,screen);
+
+    // i->setPT3(p1x+400,p1y+400,-1); ///   312  321
+    // i->setPT1(p2x+400,p2y+400,-1);
+    // i->setPT2(p3x+400,p3y+400,-1);///l..ll / 4
+    // depositTriangle(i,screen);
+
+    // i->setPT3(p1x+500,p1y+500,-1); ///   321
+    // i->setPT2(p2x+500,p2y+500,-1);
+    // i->setPT1(p3x+500,p3y+500,-1);///l..ll  /5
     depositTriangle(i,screen);
     e++;
   }
