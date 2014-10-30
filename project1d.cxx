@@ -67,9 +67,9 @@ class Triangle
       double         Z[3];
       double        colors[3][3];
 
-      Point *PT1;
-      Point *PT2;
-      Point *PT3;
+      // Point PT1;
+      // Point PT2;
+      // Point PT3;
 
       void setPT1(double x, double y, double z){X[0]=x; Y[0]=y; Z[0] = z;};
       void setPT2(double x, double y, double z){X[1]=x; Y[1]=y; Z[1] = z;};
@@ -118,45 +118,48 @@ class Triangle
 
       void setV(Point *v1, Point *v2, Point *v3)
       {
+
         *v1 = getPT(0);
+
         *v2 = getPT(1);
         *v3 = getPT(2);
-        PT1 = v1;
-        PT2 = v2;
-        PT3 = v3;//I think its because
+        // PT1 = *v1;
+        // PT2 = *v2;
+        // PT3 = *v3;//I think its because
       }
 
-      void sortVertices(Point v1, Point v2, Point v3)
+      void sortVertices(Point *v1, Point *v2, Point *v3)
       {
         double vt1;
         double vt3;
         //could I use a bunch of for loops to reduce the logic here?
+
         vt1 = fmax(Y[0],fmax(Y[1],Y[2]));
         vt3 = fmin(Y[0],fmin(Y[1],Y[2]));
         if (vt1 == Y[0] && vt3 == Y[1])
         {
-          setV(&v1,&v3,&v2);
+          setV(v1,v3,v2);
+
         }
         else if (vt1 == Y[0] && vt3 == Y[2])
         {
-          setV(&v1,&v2,&v3);
-
+          setV(v1,v2,v3);
         }
         else if (vt1 == Y[1] && vt3 == Y[0])
         {
-          setV(&v3,&v1,&v2);
+          setV(v3,v1,v2);
         }
         else if (vt1 == Y[1] && vt3 == Y[2])
         {
-          setV(&v2,&v1,&v3);
+          setV(v2,v1,v3);
         }
         else if (vt1 == Y[2] && vt3 == Y[0])
         {
-          setV(&v3,&v2,&v1);
+          setV(v3,v2,v1);
         }
         else if (vt1 == Y[2] && vt3 == Y[1])
         {
-          setV(&v2,&v3,&v1);
+          setV(v2,v3,v1);
         }
         else
           std::cerr<<"SOMETHINGS BROkeN"<<endl;
@@ -172,10 +175,10 @@ void debugOt(Point v1, Point v2, Point v3, std::vector<Triangle>::iterator i)
   cerr<<"v2("<<v2.X<<","<<v2.Y<<","<<v2.Z<<")"<<endl;
   cerr<<"v3("<<v3.X<<","<<v3.Y<<","<<v3.Z<<")"<<endl;
   cerr<<"**************"<<endl;
-  cerr<<"TRIANGLE OF HELL";
-  cerr<<endl<<"v1("<<i->PT1.X<<","<<i->PT1.Y<<","<<i->PT1.Z<<")"<<endl;
-  cerr<<"v2("<<i->PT2.X<<","<<i->PT2.Y<<","<<i->PT2.Z<<")"<<endl;
-  cerr<<"v3("<<i->PT3.X<<","<<i->PT3.Y<<","<<i->PT3.Z<<")"<<endl;
+  // cerr<<"TRIANGLE OF HELL";
+  // cerr<<endl<<"v1("<<i->PT1.X<<","<<i->PT1.Y<<","<<i->PT1.Z<<")"<<endl;
+  // cerr<<"v2("<<i->PT2.X<<","<<i->PT2.Y<<","<<i->PT2.Z<<")"<<endl;
+  // cerr<<"v3("<<i->PT3.X<<","<<i->PT3.Y<<","<<i->PT3.Z<<")"<<endl;
 }
 
 
@@ -217,7 +220,8 @@ class Screen
 
       //bool l = false;
 
-      void setColor(std::vector<Triangle>::iterator i, double x, double y)//int x, int y)
+      void setColor(std::vector<Triangle>::iterator i, double x, double y, Point v1,
+                        Point v2, Point v3)//int x, int y)
       {
         //This is probably where I want to do the interpolation, but the scanline maybe
         // cerr<<" ";
@@ -230,16 +234,28 @@ class Screen
         {
           // cerr<<"SETTING COLOR"<<endl;
         //I think interpolating is basically slope
-
+            //debugOt(v1,v2,v3,i);
           //Interpolate red
-        double v5x = findx(i->PT1,i->PT2,y);
+        double v5x = findx(v1,v2,y);
         // cerr<<"V5x "<<v5x<<endl;
-        double v6x = findx(i->PT2,i->PT3,y);
+        double v6x = findx(v2,v3,y);
         // cerr<<"V6x "<<v6x<<endl;
 
-        double v5r = findc(i->getRed(0),i->getRed(1),i->PT1.X,i->PT2.X,v5x);
 
-        double v6r = findc(i->getRed(1),i->getRed(2),i->PT2.X,i->PT3.X,v6x);
+
+        double v5r = findc(i->getRed(0),i->getRed(1),v1.X,v2.X,v5x);
+
+
+        double v6r = findc(i->getRed(1),i->getRed(2),v2.X,v3.X,v6x);
+
+        if (x==332 && y == 321){
+        cerr<<"*****************"<<endl;
+        cerr<<"X1 "<<v2.X<<" Y1 "<<i->getRed(1)<<endl;
+        cerr<<"X2 "<<v3.X<<" Y2 "<<i->getRed(2)<<endl;
+        cerr<<"Target X "<<v6x<<endl;
+        cerr<<"Interpolated Y "<<v6r<<endl;
+}
+
         double v4r = findc(v5r,v6r,v5x,v6x,x);
 
         // cerr<<"V5r"<<v5r<<endl;
@@ -250,22 +266,32 @@ class Screen
         // cerr<<" F "<<v5x<<endl;
         // cerr<<"V6r"<<v6r<<endl;
 
-
-        double v5u = findc(i->getBlue(0),i->getBlue(1),i->PT1.X,i->PT2.X,v5x);
-        double v6u = findc(i->getBlue(1),i->getBlue(2),i->PT2.X,i->PT3.X,v6x);
+//that must mean it is interpolating the color to be 0 or something
+        double v5u = findc(i->getBlue(0),i->getBlue(1),v1.X,v2.X,v5x);
+        double v6u = findc(i->getBlue(1),i->getBlue(2),v2.X,v3.X,v6x);
         double v4u = findc(v5u,v6u,v5x,v6x,x);
 
-        double v5g = findc(i->getGreen(0),i->getGreen(1),i->PT1.X,i->PT2.X,v5x);
-        double v6g = findc(i->getGreen(1),i->getGreen(2),i->PT2.X,i->PT3.X,v6x);
+        double v5g = findc(i->getGreen(0),i->getGreen(1),v1.X,v2.X,v5x);
+        double v6g = findc(i->getGreen(1),i->getGreen(2),v2.X,v3.X,v6x);
         double v4g = findc(v5g,v6g,v5x,v6x,x);
 
-         this->setRed(v4r, x, y);
-         this->setBlue(v4u, x, y);
-         this->setGreen(v4g, x, y);
+           this->setRed(v4r, x, y);
+           this->setBlue(v4u, x, y);
+           this->setGreen(v4g, x, y);
 
-        //this->setRed(111,x,y);
-        //this->setBlue(111,x,y);
-        //this->setGreen(111,x,y);
+           if (x==332 && y == 321){
+        cerr<<"*****************"<<endl;
+        cerr<<"V1("<<v1.X<<","<<v1.Y<<","<<v1.Z<<")"<<endl;
+        cerr<<"V2("<<v2.X<<","<<v2.Y<<","<<v2.Z<<")"<<endl;
+        cerr<<"V3("<<v3.X<<","<<v3.Y<<","<<v3.Z<<")"<<endl;
+        cerr<<"v4("<<x<<","<<y<<")"<<endl;
+        cerr<<"v5x "<<v5x << " v6x "<<v6x<<endl;
+        cerr<<"v5r "<<v5r<<" v6r "<<v6r<<" v4r "<<endl;
+        cerr<<"v1r "<<i->getRed(0)<<" v2r "<<i->getRed(1)<<" v3r "<<i->getRed(2)<<endl;
+}
+         // this->setRed(111,x,y);
+         // this->setBlue(111,x,y);
+         // this->setGreen(111,x,y);
 
         // cerr<<"V4R"<<v4r;
         }
@@ -389,11 +415,11 @@ void writeFlatBottom(Point v1, Point v2, Point v3, Screen screen,
         else rightend = (y - ri) / rightslope;
 
         if (ceil441(leftend) == floor(rightend) && (leftend >= 0 && leftend < screen.width))
-            screen.setColor(i,ceil(leftend),y);
+            screen.setColor(i,ceil(leftend),y,v1,v2,v3);
 
         for (int x = ceil441(leftend); x <= floor441(rightend); x++)
           if (x >= 0 && x< screen.width)
-            screen.setColor(i,x,y);
+            screen.setColor(i,x,y,v1,v2,v3);
       }
     }
 }
@@ -435,11 +461,11 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
         else rightend = (y - ri) / rightslope;
 
         if ( ceil441(leftend) == floor441(rightend) && ( (leftend >= 0) && (leftend< screen.width) ) )
-          screen.setColor(i,ceil441(leftend),y);
+          screen.setColor(i,ceil441(leftend),y,v1,v2,v3);
 
         for (int x = ceil441(leftend); x <= floor441(rightend); x++)
           if (x >= 0 && x< screen.width)
-            screen.setColor(i,x,y);
+            screen.setColor(i,x,y,v1,v2,v3);
       }
     }
 }
@@ -513,7 +539,10 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
 
           /*Step 2*/
 
-          i->sortVertices(v1,v2,v3);
+
+          i->sortVertices(&v1,&v2,&v3);
+cerr<<"V1"<<v1.X<<endl;
+          debugOt(v1,v2,v3,i);
 
           /*Step 3*/
 
@@ -570,9 +599,9 @@ int main()
   for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i) 
   {
     if (e == 1) continue;
-    i->X[0] = 200; i->X[1] = 700; i->X[2] = 400;
-    i->Y[0] = 500; i->Y[1] = 500; i->Y[2] = 300; //I think it's something to do with the y value
-    i->Z[0] = 100; i->Z[1] = 100; i->Z[2] = 100;
+    i->X[0] = 400; i->X[1] = 400; i->X[2] = 200;
+    i->Y[0] = 500; i->Y[1] = 100; i->Y[2] = 300; //I think it's something to do with the y value
+    i->Z[0] = 100; i->Z[1] = 100; i->Z[2] = 100;//I'm losing Z[2] what the fuck,
     depositTriangle(i,screen);
     e++;
   }
