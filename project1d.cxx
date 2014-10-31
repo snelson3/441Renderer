@@ -56,6 +56,8 @@ struct Point
   double X;
   double Y;
   double Z;
+  bool isv4;
+  double color[3];
 };
 
 
@@ -81,6 +83,9 @@ class Triangle
         tr.X = X[t];
         tr.Y = Y[t];
         tr.Z = Z[t];
+        tr.color[0] = colors[t][0];
+        tr.color[1] = colors[t][1];
+        tr.color[2] = colors[t][2];
         return tr;
       }
 
@@ -99,14 +104,14 @@ class Triangle
       //This is not the correct places to put the colors I think
         //I'm not even sure why the pixels are a 2d array now.
       void setRed(double c,int i){colors[i][0] = c;};
-      void setBlue(double c, int i){colors[i][1] = c;};
-      void setGreen(double c, int i){colors[i][2] = c;};
+      void setGreen(double c, int i){colors[i][1] = c;};
+      void setBlue(double c, int i){colors[i][2] = c;};
 
       //these need to be changed too.
       double getRed(int i){return colors[i][0];};
-      double getBlue(int i){return colors[i][1];};
-      double getGreen(int i){return colors[i][2];};
- 
+      double getGreen(int i){return colors[i][1];};
+      double getBlue(int i){return colors[i][2];};
+
       void debugOut()
       {
             std::cerr<<"********************************"<<endl;
@@ -120,7 +125,6 @@ class Triangle
       {
 
         *v1 = getPT(0);
-
         *v2 = getPT(1);
         *v3 = getPT(2);
         // PT1 = *v1;
@@ -196,6 +200,7 @@ class Screen
 {
   public:
       unsigned char   *buffer;
+      double *zbuffer;
       int width, height;
 
       //assume 9 pixels, so setr[3][3] would be spot 24
@@ -203,19 +208,29 @@ class Screen
       void setRed(double r, int x, int y){
         //std::cerr<<"  SETRED "<<x<<endl;
         int loc = y * (width)+x;
-        buffer[loc*3] = r*255;
+        buffer[loc*3] = (unsigned char)ceil441(r*255.0);
         //buffer[(y*width)+x] = r;
       }
-      void setBlue(double u, int x, int y){
+      void setGreen(double u, int x, int y){
         int loc = y * (width) + x;
-        buffer[(loc*3)+1] = u*255;
+        buffer[(loc*3)+1] = (unsigned char)ceil441(u*255.0);
         //buffer[(y*width)+x+1] = u;
       }
-      void setGreen(double g, int x, int y){
+      void setBlue(double g, int x, int y){
         int loc = y * (width) + x;
         //buffer[(y*width)+x+2]=g;
-        buffer[(loc*3)+2] = g*255;
+        buffer[(loc*3)+2] = (unsigned char)ceil441(g*255.0);
         //cerr<<x<<y<<"\n";
+      }
+
+      double getZ(int x, int y){
+        int loc = y * (width) + x;
+        return zbuffer[loc];
+      }
+
+      void setZ(int x, int y, double z){
+        int loc = y *(width) + x;
+        zbuffer[loc] = z;
       }
 
       //bool l = false;
@@ -226,12 +241,17 @@ class Screen
         //This is probably where I want to do the interpolation, but the scanline maybe
         // cerr<<" ";
         //cerr<<i->getRed(0,0)<<i->getBlue(0,0)<<i->getGreen(0,0);
+
         if (x == this->width)
           {
             return;
           }
         else
         {
+
+
+              //This might end up getting the wrong color you know, I think it will, I'm not sure why it hasn't been
+
           // cerr<<"SETTING COLOR"<<endl;
         //I think interpolating is basically slope
             //debugOt(v1,v2,v3,i);
@@ -242,37 +262,35 @@ class Screen
         // cerr<<"V6x "<<v6x<<endl;
 
 
+        //HAve to interpolate to get the Z value)
+        double v5z = findc(v1.Z,v2.Z,v1.Y,v2.Y,y);
+        double v6z = findc(v2.Z,v3.Z,v2.Y,v3.Y,y);
+        double v4z = findc(v5z,v6z,v5x,v6x,x);
 
-        double v5r = findc(i->getRed(0),i->getRed(1),v1.Y,v2.Y,y);
+         if ((v4z <= getZ(x,y) ))//Not sure what to do when they ==
+         {
+         // cerr<<"DOES THIS HAPPEN"<<endl;
+            return;//because if v4z <getZ(x,y) I don't actually want to draw the pixels
+         }
 
+//Guess I just need a semi-major refactor(again) to get the colors right
 
-        double v6r = findc(i->getRed(1),i->getRed(2),v2.Y,v3.Y,y);
+        // if (v4z < -1) cerr<<"V4Z is "<<v4z<<endl;
+        // if (v1.Z < -1) cerr<<"V1Z is "<<v1.Z<<endl;
+        // if (v2.Z < -1) cerr<<"V2Z is "<<v2.Z<<endl;
+        // if (v3.Z < -1) cerr<<"V3Z is "<<v3.Z<<endl;
+        setZ(x,y,v4z);
 
-//         if (x==332 && y == 321){
-//         cerr<<"*****************"<<endl;
-//         cerr<<"X1 "<<v2.X<<" Y1 "<<i->getRed(1)<<endl;
-//         cerr<<"X2 "<<v3.X<<" Y2 "<<i->getRed(2)<<endl;
-//         cerr<<"Target X "<<v6x<<endl;
-//         cerr<<"Interpolated Y "<<v6r<<endl;
-// }
-
+        double v5r = findc(v1.color[0],v2.color[0],v1.Y,v2.Y,y);
+        double v6r = findc(v2.color[0],v3.color[0],v2.Y,v3.Y,y);
         double v4r = findc(v5r,v6r,v5x,v6x,x);
-
-        // cerr<<"V5r"<<v5r<<endl;
-        // cerr<<" A "<<i->getRed(0)<<endl;
-        // cerr<<" B "<<i->getRed(1)<<endl;
-        // cerr<<" C "<<i->PT1.X<<endl;
-        // cerr<<" D "<<i->PT2.X<<endl;
-        // cerr<<" F "<<v5x<<endl;
-        // cerr<<"V6r"<<v6r<<endl;
-
 //that must mean it is interpolating the color to be 0 or something
-        double v5u = findc(i->getBlue(0),i->getBlue(1),v1.Y,v2.Y,y);
-        double v6u = findc(i->getBlue(1),i->getBlue(2),v2.Y,v3.Y,y);
+        double v5u = findc(v1.color[2],v2.color[2],v1.Y,v2.Y,y);
+        double v6u = findc(v2.color[2],v3.color[2],v2.Y,v3.Y,y);
         double v4u = findc(v5u,v6u,v5x,v6x,x);
 
-        double v5g = findc(i->getGreen(0),i->getGreen(1),v1.Y,v2.Y,y);
-        double v6g = findc(i->getGreen(1),i->getGreen(2),v2.Y,v3.Y,y);
+        double v5g = findc(v1.color[1],v2.color[1],v1.Y,v2.Y,y);
+        double v6g = findc(v2.color[1],v3.color[1],v2.Y,v3.Y,y);
         double v4g = findc(v5g,v6g,v5x,v6x,x);
 
            this->setRed(v4r, x, y);
@@ -294,13 +312,17 @@ class Screen
          // this->setGreen(111,x,y);
 
         // cerr<<"V4R"<<v4r;
+
+
         }
-      }
 
 
+
+
+        }
 };
 
-
+//Guy said somethings wrong with splitting of triangles and setting color to points, which sounds correct
 std::vector<Triangle>
 GetTriangles(void)
 {
@@ -349,14 +371,14 @@ GetTriangles(void)
         // 5->6 interpolate between brick, salmon
         double mins[7] = { 1, 2, 2.5, 3, 3.5, 4, 5 };
         double maxs[7] = { 2, 2.5, 3, 3.5, 4, 5, 6 };
-        unsigned char RGB[8][3] = { { 71, 71, 219 }, 
+        unsigned char RGB[8][3] = { { 71, 71, 219 },
                                     { 0, 0, 91 },
                                     { 0, 255, 255 },
                                     { 0, 128, 0 },
                                     { 255, 255, 0 },
                                     { 255, 96, 0 },
                                     { 107, 0, 0 },
-                                    { 224, 76, 76 } 
+                                    { 224, 76, 76 }
                                   };
         for (int j = 0 ; j < 3 ; j++)
         {
@@ -486,6 +508,7 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
         {
           //I think these can fuck up given a triangle like (0,0,1)(0,0,2)(5,2,0)
           //1 and 2 are the same Y
+         // cerr<<"hi";
           if (i->getX1() < i->getX2())
           {
             i->setV(&v1,&v3,&v2);
@@ -508,9 +531,9 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
           }
           else
           {
-            cerr<<"THIS SHOULD RUN";
+            //cerr<<"THIS SHOULD RUN";
             i->setV(&v2,&v3,&v1);
-            debugOt(v1,v2,v3,i);
+            //debugOt(v1,v2,v3,i);
           }
           if (v2.Y < v1.Y)
             writeFlatTop(v1,v2,v3,screen,i);
@@ -518,7 +541,7 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
             writeFlatBottom(v1,v2,v3,screen,i);
         }
         else if (i->getY1() == i->getY3())
-        {    
+        {
           //1 and 3 are the same Y,
           if (i->getX1() < i->getX3())
           {
@@ -536,15 +559,15 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen,
           }
         }
         else
-        {  
+        {
           //must split into a flat bottom and a flat top triangle
 
           /*Step 2*/
 
 
           i->sortVertices(&v1,&v2,&v3);
-cerr<<"V1"<<v1.X<<endl;
-          debugOt(v1,v2,v3,i);
+//cerr<<"V1"<<v1.X<<endl;
+         // debugOt(v1,v2,v3,i);
 
           /*Step 3*/
 
@@ -561,48 +584,79 @@ cerr<<"V1"<<v1.X<<endl;
 
           /*Step 4.5*/
           //Gotta do some math to determine the Z for this point
-          v4.Z = 0;
+          //I think I am just interpolating here
 
+
+          //Wait isn't this going to be a different line based on where the split occurs???Probably some more mathy work
+          //This isn't the correct way to interpolate but it is something.
+
+
+          //How do I get a color for v4??????????????
+
+          //If this doesn't work I need more if statements to determine exactly where point 4 is.
+
+          //I guess the side the triangle is facing doesn't matter when interpolating the color
+          v4.Z = findc(v1.Z,v3.Z,v1.Y,v3.Y,v4.Y);
+
+          //since it's not drawing some, i think that means colors are undefined
+          //sometimes
+          v4.color[0] = findc(v1.color[0],v3.color[0],v1.Y,v3.Y,v4.Y);
+          v4.color[1] = findc(v1.color[1],v3.color[1],v1.Y,v3.Y,v4.Y);
+          v4.color[2] = findc(v1.color[2],v3.color[2],v1.Y,v3.Y,v4.Y);
           /*Step 5*/
 
-          if (v2.X < v4.X)
+          if (v2.X < v4.X){
             writeFlatTop(v2,v3,v4,screen,i);
-          else
+          }
+          else{
             writeFlatTop(v4,v3,v2,screen,i);
+          }
 
           /*Step 6*/
-        
-          if (v2.X<v4.X)
+
+          if (v2.X<v4.X){
             writeFlatBottom(v2,v1,v4,screen,i);
-          else 
+          }
+          else {
             writeFlatBottom(v4,v1,v2,screen,i);
+          }
 
     }
       }
 
 int main()
 {
+
+
+  //Can I do this by having the screen have another buffer that is 1000/1000 and just stores the data, rather than fitting it all in
+  //data structure?
    vtkImageData *image = NewImage(1000, 1000);
    unsigned char *buffer =
      (unsigned char *) image->GetScalarPointer(0,0,0);
+
    int npixels = 1000*1000;
-   for (int i = 0 ; i < npixels*3 ; i++)
-       buffer[i] = 0;
+    double *zbuffer = new double[npixels];
+   for (int i = 0; i < npixels*3 ; i++)
+       buffer[i] = 0; //You can use loop unrolling so this is not 2 for loops
+   for (int i = 0; i < npixels; i++)
+      zbuffer[i] = -1; //valid depth values go from -1 (back) to 0 (front)
 
    std::vector<Triangle> triangles = GetTriangles();
 
    Screen screen;
    screen.buffer = buffer;
+   screen.zbuffer = zbuffer;
    screen.width = 1000;
    screen.height = 1000;
+
 
    double p1x, p1y, p2x, p2y, p3x, p3y;
 
    // YOUR CODE GOES HERE TO DEPOSIT TRIANGLES INTO PIXELS USING THE SCANLINE ALGORITHM
    int e = 0;
-  for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i) 
+  for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i)
   {
-    // if (e == 1) continue;
+    //   if (e == 1) continue;
 
     // p1x = 50.0;
     // p1y = 90.0;
@@ -610,37 +664,34 @@ int main()
     // p2y = 40.0;
     // p3x = 60.0;
     // p3y = 40.0;
+    //  i->setRed(1,0); i->setRed(0,1); i->setRed(0,2);
+    //  i->setGreen(0,0); i->setGreen(1,1); i->setGreen(0,2);
+    //  i->setBlue(0,0); i->setBlue(0,1); i->setBlue(1,2);
+    //                                   //The depth is supposed to be between zero and 1, so something there is wonky??
+    // i->setPT1(100,100,-.1);
+    // i->setPT2(350,800,-.1);
+    // i->setPT3(700,100,-.1);
+    depositTriangle(i,screen);//I don't think I am assigning vertice 4 a color, that's actually something I know is happening
+                                //and Is definitely the problem.
 
+    //      i->setRed(0,0); i->setRed(0,1); i->setRed(0,2);
+    //  i->setGreen(1,0); i->setGreen(1,1); i->setGreen(1,2);
+    //  i->setBlue(0,0); i->setBlue(0,1); i->setBlue(0,2);
 
-    // i->setPT1(p1x,p1y,-1); ///   123  132  213   231  Ω  312  321
-    // i->setPT2(p2x,p2y,-1);
-    // i->setPT3(p3x,p3y,-1);///l..ll   //0.,0
+    // i->setPT1(200,200,0.5);
+    // i->setPT2(500,200,0.5);
+    // i->setPT3(400,300,-0.5);
     // depositTriangle(i,screen);
 
-    // i->setPT1(p1x+100,p1y+100,-1); ///   132  213   231  Ω  312  321
-    // i->setPT3(p2x+100,p2y+100,-1);  
-    // i->setPT2(p3x+100,p3y+100,-1);///l..ll   /100,100
+    //      i->setRed(1,0); i->setRed(1,1); i->setRed(1,2);
+    //  i->setGreen(0,0); i->setGreen(0,1); i->setGreen(0,2);
+    //  i->setBlue(0,0); i->setBlue(0,1); i->setBlue(0,2);
+
+    //  i->setPT1(250,250,0.3);
+    //  i->setPT2(350,350,0.3);
+    //  i->setPT3(700,100,0.3);
     //  depositTriangle(i,screen);
 
-    // i->setPT2(p1x+200,p1y+200,-1); ///    213   231  Ω  312  321
-    // i->setPT1(p2x+200,p2y+200,-1);
-    // i->setPT3(p3x+200,p3y+200,-1);///l..ll   /20
-    // depositTriangle(i,screen);
-
-    // i->setPT2(p1x+300,p1y+300,-1); ///   231  Ω  312  321
-    // i->setPT3(p2x+300,p2y+300,-1);
-    // i->setPT1(p3x+300,p3y+300,-1);///l..ll  /3
-    // depositTriangle(i,screen);
-
-    // i->setPT3(p1x+400,p1y+400,-1); ///   312  321
-    // i->setPT1(p2x+400,p2y+400,-1);
-    // i->setPT2(p3x+400,p3y+400,-1);///l..ll / 4
-    // depositTriangle(i,screen);
-
-    // i->setPT3(p1x+500,p1y+500,-1); ///   321
-    // i->setPT2(p2x+500,p2y+500,-1);
-    // i->setPT1(p3x+500,p3y+500,-1);///l..ll  /5
-    depositTriangle(i,screen);
     e++;
   }
   std::cerr<<e<<" ";
