@@ -44,11 +44,21 @@ WriteImage(vtkImageData *img, const char *filename)
    writer->Delete();
 }
 
-
+double cotan(double deg)
+{
+  return 1/tan(deg);
+}
 
 double dotProduct(double *A, double *B)
 {
   return A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+}
+
+void crossProduct(double *A, double *B, double *AB)
+{
+  AB[0] = A[1]*B[2]-A[2]*B[1];
+  AB[1] = B[0]*A[2]-A[0]*B[2];
+  AB[2] = A[0]*B[1]-A[1]*B[0];
 }
 
 void debugOt(Point v1, Point v2, Point v3, std::vector<Triangle>::iterator i)
@@ -60,6 +70,13 @@ void debugOt(Point v1, Point v2, Point v3, std::vector<Triangle>::iterator i)
   cerr<<"**************"<<endl;
 }
 
+void normalize(double *A)
+{
+  double norm = sqrt(A[0]*A[0]+A[1]*A[1]+A[2]*A[2]);
+  A[0] = A[0]/norm;
+  A[1] = A[1]/norm;
+  A[2] = A[2]/norm;
+}
 
 double findx (Point v1, Point v2, double E)
 {
@@ -113,11 +130,11 @@ class Screen
 
       double calculateSpecular(double *normal)
       {
-        //View direction is going to be [0,0,-1];
+        //View direction is going to be [0,0,-1];//jk not really
         double V[3];
         V[0] = 0;
         V[1] = 0;
-        V[2] = -1;
+        V[2] = 1;
         double R[3];
         R[0] = 2 * dotProduct(lp.lightDir,normal)*normal[0]-lp.lightDir[0];
         R[1] = 2 * dotProduct(lp.lightDir,normal)*normal[1]-lp.lightDir[1];
@@ -130,7 +147,7 @@ class Screen
         double diffuse = calculateDiffuse(normal);
         double specular = fmax(0,pow(calculateSpecular(normal),lp.alpha));
         double shading = lp.Ka + lp.Kd*diffuse + lp.Ks*specular;
-        return shading;
+        return 1;//shading;
       }
 
       void setColor(double x, double y, Point v1, Point v2, Point v3)
@@ -144,8 +161,8 @@ class Screen
         double v6z = interpolate(v2.Z,v3.Z,v2.Y,v3.Y,y);
         double v4z = interpolate(v5z,v6z,v5x,v6x,x);
 
-         if ((v4z <= getZ(x,y) ))
-            return;
+        if ((v4z <= getZ(x,y) ))//I think I'm supposed to reverse this (I already did, it was originally <=)
+             return;
 
         setZ(x,y,v4z);
 
@@ -216,8 +233,11 @@ void writeFlatBottom(Point v1, Point v2, Point v3, Screen screen)
             screen.setColor(ceil(leftend),y,v1,v2,v3);
 
         for (int x = ceil441(leftend); x <= floor441(rightend); x++)
+        {
+         // cerr<<"WEE";
           if (x >= 0 && x< screen.width)
             screen.setColor(x,y,v1,v2,v3);
+        }
       }
     }
 }
@@ -261,7 +281,7 @@ void writeFlatTop(Point v1, Point v2, Point v3, Screen screen)
 }
 
 
-void depositTriangle(std::vector<Triangle>::iterator i, Screen screen)
+void depositTriangle(Triangle i, Screen screen)
 {
   Point v1,v2,v3,v4;
   double slope, intercept;
@@ -269,36 +289,36 @@ void depositTriangle(std::vector<Triangle>::iterator i, Screen screen)
   /*Step 1*/
 
   //3 Cases, when 1 and 2 are flat bottom and when 1 and 3 are flat bottom and when 2 and 3 are flat bottom
-  if (i->getY1() == i->getY2())
+  if (i.getY1() == i.getY2())
   {
-    if (i->getX1() < i->getX2())
-      i->setV(&v1,&v3,&v2);
+    if (i.getX1() < i.getX2())
+      i.setV(&v1,&v3,&v2);
     else
-      i->setV(&v3,&v1,&v2);
+      i.setV(&v3,&v1,&v2);
 
     if (v2.Y < v1.Y)
       writeFlatTop(v1,v2,v3,screen);
     else
       writeFlatBottom(v1,v2,v3,screen);
   }
-  else if (i->getY2() == i->getY3())
+  else if (i.getY2() == i.getY3())
   {
-    if (i->getX2() < i->getX3())
-      i->setV(&v2,&v1,&v3);
+    if (i.getX2() < i.getX3())
+      i.setV(&v2,&v1,&v3);
     else
-      i->setV(&v2,&v3,&v1);
+      i.setV(&v2,&v3,&v1);
     
     if (v2.Y < v1.Y)
       writeFlatTop(v1,v2,v3,screen);
     else
       writeFlatBottom(v1,v2,v3,screen);
   }
-  else if (i->getY1() == i->getY3())
+  else if (i.getY1() == i.getY3())
   {
-    if (i->getX1() < i->getX3())
-      i->setV(&v1,&v2,&v3);
+    if (i.getX1() < i.getX3())
+      i.setV(&v1,&v2,&v3);
     else
-      i->setV(&v3,&v2,&v1);
+      i.setV(&v3,&v2,&v1);
 
     if (v2.Y < v1.Y)
       writeFlatTop(v1,v2,v3,screen);
@@ -312,7 +332,7 @@ void depositTriangle(std::vector<Triangle>::iterator i, Screen screen)
     /*Step 2*/
 
 
-    i->sortVertices(&v1,&v2,&v3);
+    i.sortVertices(&v1,&v2,&v3);
 
     /*Step 3*/
 
@@ -365,12 +385,94 @@ class Camera
     double          position[3];
     double          focus[3];
     double          up[3];
+    Matrix          ct;
+    Matrix          vt;
+    Matrix          dt;
+    Matrix          tt;
 
-    Matrix          ViewTransform(void) {Matrix vt; return vt;};
-    Matrix          CameraTransform(void) {Matrix ct; return ct;};
-    Matrix          DeviceTransform(void) {Matrix dt; return dt;};
+
+    void          ViewTransform(void) 
+    {
+      vt.A[0][0] = cotan(angle/2);
+      vt.A[0][1] = 0;
+      vt.A[0][2] = 0;
+      vt.A[0][3] = 0;
+
+      vt.A[1][0] = 0;
+      vt.A[1][1] = cotan(angle/2);
+      vt.A[1][2] = 0;
+      vt.A[1][3] = 0;
+
+      vt.A[2][0] = 0;
+      vt.A[2][1] = 0;
+      vt.A[2][2] = (far+near)/(far-near);
+      vt.A[2][3] = -1;
+
+      vt.A[3][0] = 0;
+      vt.A[3][1] = 0;
+      vt.A[3][2] = (2*far*near)/(far-near);
+      vt.A[3][3] = 0;
+    };
+
+
+    void          CameraTransform(double *v1, double *v2, double *v3, double *o) 
+    {
+      ct.A[0][0] = v1[0];
+      ct.A[0][1] = v2[0];
+      ct.A[0][2] = v3[0];
+      ct.A[0][3] = 0;
+
+      ct.A[1][0] = v1[1];
+      ct.A[1][1] = v2[1];
+      ct.A[1][2] = v3[1];
+      ct.A[1][3] = 0;
+
+      ct.A[2][0] = v1[2];
+      ct.A[2][1] = v2[2];
+      ct.A[2][2] = v3[2];
+      ct.A[2][3] = 0;
+
+      double t[3];
+      for (int i = 0; i < 3; i++) t[i] = 0-o[i];
+
+      ct.A[3][0] = dotProduct(v1,t);
+      ct.A[3][1] = dotProduct(v2,t);
+      ct.A[3][2] = dotProduct(v3,t);
+      ct.A[3][3] = 1;
+
+    };
+
+
+
+    void          DeviceTransform(double *A) 
+    {
+
+      double x = (1000*(A[0]+1))/2;
+      double y = (1000*(A[1]+1))/2;
+      double z = A[2];
+      dt.A[0][0] = 1000/2;
+      dt.A[0][1] = 0;
+      dt.A[0][2] = 0;
+      dt.A[0][3] = 0;
+
+      dt.A[1][0] = 0;
+      dt.A[1][1] = 1000/2;
+      dt.A[1][2] = 0;
+      dt.A[1][3] = 0;
+
+      dt.A[2][0] = 0;
+      dt.A[2][1] = 0;
+      dt.A[2][2] = 1;
+      dt.A[2][3] = 0;
+
+      dt.A[3][0] = 1000/2;
+      dt.A[3][1] = 1000/2;
+      dt.A[3][2] = 0;
+      dt.A[3][3] = 1;
+    };
 };
 
+//calculate the camera frame somehow
 
 double SineParameterize(int curFrame, int nFrames, int ramp)
 {
@@ -412,6 +514,44 @@ GetCamera(int frame, int nframes)
     c.up[0] = 0;
     c.up[1] = 1;
     c.up[2] = 0;
+    // cerr<<"c.near "<<c.near<<endl;
+    // cerr<<"c.far "<<c.far<<endl;
+    // cerr<<"c.angle "<<c.angle<<endl;
+
+    double          v1[3];
+    double          v2[3];
+    double          v3[3];
+        //Up x (O-focus)      V1
+        //(O-focus) x v1      V2
+        //(O-focus)           V3
+
+    for (int i = 0; i < 3; i++) v3[i] = c.position[i] - c.focus[i];
+    crossProduct(c.up,v3,v1);
+    normalize(v1);
+    crossProduct(v3,v1,v2);
+    normalize(v2);
+    normalize(v3);
+
+    // cerr<<"v1 " << v1[0] << " "<<v1[1]<<" "<<v1[2]<<endl;
+    // cerr<<"v2 " << v2[0] << " "<<v2[1]<<" "<<v2[2]<<endl;
+    // cerr<<"v3 " << v3[0] << " "<<v3[1]<<" "<<v3[2]<<endl;
+    // cerr<<"o " << c.position[0] << " "<<c.position[1]<<" "<<c.position[2]<<endl;
+
+
+
+    //dt ct vt
+    //dt vt ct
+    c.CameraTransform(v1,v2,v3,c.position);
+    c.ViewTransform();
+    c.DeviceTransform(c.position);
+    c.tt = c.tt.ComposeMatrices(c.ct,c.vt);
+    // cerr<<"*********Combined ct with vt**************"<<endl;
+    // c.tt.Print(cerr);
+          c.tt = c.tt.ComposeMatrices(c.tt,c.dt);
+    // cerr<<"*********Combined tt with dt***************"<<endl;
+    // c.tt.Print(cerr);
+    //c.vt.Print(cerr);
+    // camtr.Print(cerr);
     return c;
 }
 
@@ -420,9 +560,59 @@ GetCamera(int frame, int nframes)
 
 
 
-Triangle toDeviceSpace(std::vector<Triangle>::iterator i)
+Triangle toDeviceSpace(std::vector<Triangle>::iterator i, Camera c)
   {
     Triangle t;
+
+    double oPT1[4];
+    oPT1[0]=i->getX1(); oPT1[1]=i->getY1(); oPT1[2]=i->getZ1(); oPT1[3]=1;
+    double oPT2[4];
+    oPT2[0]=i->getX2(); oPT2[1]=i->getY2(); oPT2[2]=i->getZ2(); oPT2[3]=1;
+    double oPT3[4];
+    oPT3[0]=i->getX3(); oPT3[1]=i->getY3(); oPT3[2]=i->getZ3(); oPT3[3]=1;
+
+    double nPT1[4];
+    double nPT2[4];
+    double nPT3[4];
+    for (int i = 0; i<4; i++)
+    {
+      nPT1[i] = 0; nPT2[i] = 0; nPT3[i] = 0;
+    }
+
+    //c.tt.Print(cerr);
+
+
+    c.tt.TransformPoint(oPT1,nPT1);
+    c.tt.TransformPoint(oPT2,nPT2);
+    c.tt.TransformPoint(oPT3,nPT3);
+
+    double d = 1;
+    double m = 0;
+
+    // normalize(nPT1);
+    // normalize(nPT2);
+    // normalize(nPT3);
+
+    t.setPT1(nPT1[0]/nPT1[3],nPT1[1]/nPT1[3],nPT1[2]/nPT1[3]);
+    t.setPT2(nPT2[0]/nPT2[3],nPT2[1]/nPT1[3],nPT2[2]/nPT1[3]);
+    t.setPT3(nPT3[0]/nPT3[3],nPT3[1]/nPT1[3],nPT3[2]/nPT1[3]);
+    i->setColors(t.colors);
+    i->setNormals(t.normals);
+
+
+    // double T[4];
+    // T[0] = 1.11111;
+    // T[1] = 7.46665;
+    // T[2] = -8.9899;
+    // T[3] = 1;
+
+    // double nT[4];
+
+    // c.tt.TransformPoint(T,nT);
+
+    // cerr<<"Transformed " <<T[0] <<" "<<T[1] <<" "<<T[2]<<" "<<T[3]<<" to "<<nT[0]/nT[3]<<" "<<nT[1]/nT[3]<<" "<<nT[2]/nT[3]<<" "
+    //     <<nT[3]<<endl;
+
     return t;
   }
 
@@ -438,7 +628,7 @@ vtkImageData *image = NewImage(1000, 1000);
     for (int i = 0; i < npixels*3 ; i++)
         buffer[i] = 0;
     for (int i = 0; i < npixels; i++)
-        zbuffer[i] = 1; //I was told depth is opposite in this part
+        zbuffer[i] = -1; //I was told depth is opposite in this part
 
    Screen screen;
    screen.buffer = buffer;
@@ -450,13 +640,46 @@ vtkImageData *image = NewImage(1000, 1000);
 
   Camera c = GetCamera(curr,total);
   //I probably need to do something to get the right Matrix here to send into toDeviceSpace
-
+  int e = 0;
   for(std::vector<Triangle>::iterator i = t.begin(); i != t.end(); ++i)
   {
-    Triangle t = toDeviceSpace(i);
-    depositTriangle(i,screen);
-  }
+    // if (e != 0)
+    //   continue;
+    // // e++;
+    Triangle t = toDeviceSpace(i,c);
+    depositTriangle(t,screen);
+    if (t.getX1() > e)
+      e = t.getX1();
 
+     // cerr<<"************ t points **************"<<endl;
+     // cerr<<t.getX1()<<" "<<t.getY1()<<" "<<t.getZ1()<<endl;
+     // cerr<<t.getX2()<<" "<<t.getY2()<<" "<<t.getZ2()<<endl;
+     // cerr<<t.getX3()<<" "<<t.getY3()<<" "<<t.getZ3()<<endl;
+    // cerr<<"************ t colors **************"<<endl;
+    // cerr<<t.colors[0][0]<<" "<<t.colors[0][1]<<" "<<t.colors[0][2]<<endl;
+    // cerr<<t.colors[1][0]<<" "<<t.colors[1][1]<<" "<<t.colors[1][2]<<endl;
+    // cerr<<t.colors[2][0]<<" "<<t.colors[2][1]<<" "<<t.colors[2][2]<<endl;
+    // cerr<<"************ t normals **************"<<endl;
+    // cerr<<t.normals[0][0]<<" "<<t.normals[0][1]<<" "<<t.normals[0][2]<<endl;
+    // cerr<<t.normals[1][0]<<" "<<t.normals[1][1]<<" "<<t.normals[1][2]<<endl;
+    // cerr<<t.normals[2][0]<<" "<<t.normals[2][1]<<" "<<t.normals[2][2]<<endl;
+    // cerr<<"*************************************"<<endl;
+    // cerr<<"************ i points **************"<<endl;
+    // cerr<<i->getX1()<<" "<<i->getY1()<<" "<<i->getZ1()<<endl;
+    // cerr<<i->getX2()<<" "<<i->getY2()<<" "<<i->getZ2()<<endl;
+    // cerr<<i->getX3()<<" "<<i->getY3()<<" "<<i->getZ3()<<endl;
+    // cerr<<"************ i colors **************"<<endl;
+    // cerr<<i->colors[0][0]<<" "<<i->colors[0][1]<<" "<<i->colors[0][2]<<endl;
+    // cerr<<i->colors[1][0]<<" "<<i->colors[1][1]<<" "<<i->colors[1][2]<<endl;
+    // cerr<<i->colors[2][0]<<" "<<i->colors[2][1]<<" "<<i->colors[2][2]<<endl;
+    // cerr<<"************ i normals **************"<<endl;
+    // cerr<<i->normals[0][0]<<" "<<i->normals[0][1]<<" "<<i->normals[0][2]<<endl;
+    // cerr<<i->normals[1][0]<<" "<<i->normals[1][1]<<" "<<i->normals[1][2]<<endl;
+    // cerr<<i->normals[2][0]<<" "<<i->normals[2][1]<<" "<<i->normals[2][2]<<endl;
+    // cerr<<"*************************************"<<endl;
+
+  }
+  cerr<<"E "<<e<<endl;
   //This breakfs with big amounts of frames but thats ok for now/this project
   char framenum[6];
   if (curr < 10) sprintf(framenum, "fr000%d",curr);
@@ -470,9 +693,22 @@ int main()
 {
   std::vector<Triangle> triangles = GetTriangles();
   makeImage(0,1000,triangles);
-  makeImage(250,1000,triangles);
-  makeImage(500,1000,triangles);
-  makeImage(750,1000,triangles);
+  
+  // Camera c;
+  // c.near = 5;
+  // c.far = 10;
+  // c.angle = 90;
+
+  // c.ViewTransform();
+  // c.vt.Print(cerr);
+
+//  cerr<<cotan(90/2);
+
+   makeImage(250,1000,triangles);
+   makeImage(500,1000,triangles);
+   makeImage(750,1000,triangles);
+
+
    // vtkImageData *image = NewImage(1000, 1000);
    // unsigned char *buffer =
    //   (unsigned char *) image->GetScalarPointer(0,0,0);

@@ -9,9 +9,9 @@ class Camera
     double          focus[3];
     double          up[3];
 
-    Matrix          ViewTransform(void) {;};
-    Matrix          CameraTransform(void) {;};
-    Matrix          DeviceTransform(void) {;};
+    Matrix          ViewTransform(void) {Matrix vt; return vt;};
+    Matrix          CameraTransform(void) {Matrix ct; return ct;};
+    Matrix          DeviceTransform(void) {Matrix dt; return dt;};
 };
 
 

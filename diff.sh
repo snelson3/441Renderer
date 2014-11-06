@@ -1,1 +1,1 @@
-../differencer/differencer.app/Contents/MacOS/differencer allTriangles.png cAmbient.png
+../differencer/differencer.app/Contents/MacOS/differencer t.png c.png

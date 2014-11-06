@@ -48,6 +48,32 @@ class Triangle
       double getZ2(){return Z[1];};
       double getZ3(){return Z[2];};
 
+      void setNormals(double N[3][3])
+      {
+        N[0][0] = normals[0][0];
+        N[0][1] = normals[0][1];
+        N[0][2] = normals[0][2];
+        N[1][0] = normals[1][0];
+        N[1][1] = normals[1][1];
+        N[1][2] = normals[1][2];
+        N[2][0] = normals[2][0];
+        N[2][1] = normals[2][1];
+        N[2][2] = normals[2][2];
+      }
+
+      void setColors(double C[3][3])
+      {
+        C[0][0] = colors[0][0];
+        C[0][1] = colors[0][1];
+        C[0][2] = colors[0][2];
+        C[1][0] = colors[1][0];
+        C[1][1] = colors[1][1];
+        C[1][2] = colors[1][2];
+        C[2][0] = colors[2][0];
+        C[2][1] = colors[2][1];
+        C[2][2] = colors[2][2];
+      }
+
       void setRed(double c,int i){colors[i][0] = c;};
       void setGreen(double c, int i){colors[i][1] = c;};
       void setBlue(double c, int i){colors[i][2] = c;};
