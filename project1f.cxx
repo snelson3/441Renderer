@@ -1,11 +1,11 @@
 #include <iostream>
- #include <vtkDataSet.h>
- #include <vtkImageData.h>
- #include <vtkPNGWriter.h>
+#include <vtkDataSet.h>
+#include <vtkImageData.h>
+#include <vtkPNGWriter.h>
 #include <math.h>
-#include "Camera.cxx"
-#include "reader1E.cxx"
+#include "reader1F.cxx"
 #include "shading.cxx"
+#include "matrix.cxx"
 
 using std::cerr;
 using std::endl;
@@ -355,9 +355,81 @@ void depositTriangle(std::vector<Triangle>::iterator i, Screen screen)
   }
 }
 
-int main()
+
+
+class Camera
 {
-   vtkImageData *image = NewImage(1000, 1000);
+  public:
+    double          near, far;
+    double          angle;
+    double          position[3];
+    double          focus[3];
+    double          up[3];
+
+    Matrix          ViewTransform(void) {Matrix vt; return vt;};
+    Matrix          CameraTransform(void) {Matrix ct; return ct;};
+    Matrix          DeviceTransform(void) {Matrix dt; return dt;};
+};
+
+
+double SineParameterize(int curFrame, int nFrames, int ramp)
+{
+    int nNonRamp = nFrames-2*ramp;
+    double height = 1./(nNonRamp + 4*ramp/M_PI);
+    if (curFrame < ramp)
+    {
+        double factor = 2*height*ramp/M_PI;
+        double eval = cos(M_PI/2*((double)curFrame)/ramp);
+        return (1.-eval)*factor;
+    }
+    else if (curFrame > nFrames-ramp)
+    {
+        int amount_left = nFrames-curFrame;
+        double factor = 2*height*ramp/M_PI;
+        double eval =cos(M_PI/2*((double)amount_left/ramp));
+        return 1. - (1-eval)*factor;
+    }
+    double amount_in_quad = ((double)curFrame-ramp);
+    double quad_part = amount_in_quad*height;
+    double curve_part = height*(2*ramp)/M_PI;
+    return quad_part+curve_part;
+}
+
+Camera
+GetCamera(int frame, int nframes)
+{
+    double t = SineParameterize(frame, nframes, nframes/10);
+    Camera c;
+    c.near = 5;
+    c.far = 200;
+    c.angle = M_PI/6;
+    c.position[0] = 40*sin(2*M_PI*t);
+    c.position[1] = 40*cos(2*M_PI*t);
+    c.position[2] = 40;
+    c.focus[0] = 0;
+    c.focus[1] = 0;
+    c.focus[2] = 0;
+    c.up[0] = 0;
+    c.up[1] = 1;
+    c.up[2] = 0;
+    return c;
+}
+
+
+
+
+
+
+Triangle toDeviceSpace(std::vector<Triangle>::iterator i)
+  {
+    Triangle t;
+    return t;
+  }
+
+void makeImage(int curr, int total, std::vector<Triangle> t)
+{
+  //set up the screen
+vtkImageData *image = NewImage(1000, 1000);
    unsigned char *buffer =
      (unsigned char *) image->GetScalarPointer(0,0,0);
 
@@ -366,10 +438,7 @@ int main()
     for (int i = 0; i < npixels*3 ; i++)
         buffer[i] = 0;
     for (int i = 0; i < npixels; i++)
-        zbuffer[i] = -1; //valid depth values go from -1 (back) to 0 (front)
-
-
-   std::vector<Triangle> triangles = GetTriangles();
+        zbuffer[i] = 1; //I was told depth is opposite in this part
 
    Screen screen;
    screen.buffer = buffer;
@@ -377,8 +446,52 @@ int main()
    screen.width = 1000;
    screen.height = 1000;
 
-   for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i)
-     depositTriangle(i,screen);
+  //Now to get the image, put each triangle in device space, and render it on the screen (before writing the png)
+
+  Camera c = GetCamera(curr,total);
+  //I probably need to do something to get the right Matrix here to send into toDeviceSpace
+
+  for(std::vector<Triangle>::iterator i = t.begin(); i != t.end(); ++i)
+  {
+    Triangle t = toDeviceSpace(i);
+    depositTriangle(i,screen);
+  }
+
+  //This breakfs with big amounts of frames but thats ok for now/this project
+  char framenum[6];
+  if (curr < 10) sprintf(framenum, "fr000%d",curr);
+  else if (curr < 100) sprintf(framenum, "fr00%d",curr);
+  else if (curr < 1000) sprintf(framenum, "fr0%d",curr);
+  else  sprintf(framenum, "fr%d",curr);
+  WriteImage(image, framenum);
+}
+
+int main()
+{
+  std::vector<Triangle> triangles = GetTriangles();
+  makeImage(0,1000,triangles);
+  makeImage(250,1000,triangles);
+  makeImage(500,1000,triangles);
+  makeImage(750,1000,triangles);
+   // vtkImageData *image = NewImage(1000, 1000);
+   // unsigned char *buffer =
+   //   (unsigned char *) image->GetScalarPointer(0,0,0);
+
+   // int npixels = 1000*1000;
+   //  double *zbuffer = new double[npixels];
+   //  for (int i = 0; i < npixels*3 ; i++)
+   //      buffer[i] = 0;
+   //  for (int i = 0; i < npixels; i++)
+   //      zbuffer[i] = -1; //valid depth values go from -1 (back) to 0 (front)
+
+   // Screen screen;
+   // screen.buffer = buffer;
+   // screen.zbuffer = zbuffer;
+   // screen.width = 1000;
+   // screen.height = 1000;
+
+   // for(std::vector<Triangle>::iterator i = triangles.begin(); i != triangles.end(); ++i)
+   //   depositTriangle(i,screen);
    
-   WriteImage(image, "allTriangles");
+   // WriteImage(image, "allTriangles");
 }
