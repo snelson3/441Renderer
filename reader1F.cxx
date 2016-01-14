@@ -6,8 +6,8 @@
 #include <vtkFloatArray.h>
 #include <vtkDoubleArray.h>
 #include <vtkCellArray.h>
-#include <vtkDataSetWriter.h>
 #include "triangle.cxx"
+#include <vtkDataSetWriter.h>
 
 std::vector<Triangle>
 GetTriangles(void)
@@ -114,4 +114,3 @@ writer->Write();
 
     return tris;
 }
-

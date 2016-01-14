@@ -12,6 +12,111 @@ using std::endl;
 
 bool k = false;
 
+double cotan(double deg)
+{
+  return 1/tan(deg);
+}
+double dotProduct(double *A, double *B)
+{
+  return A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
+}
+
+
+class Camera
+{
+  public:
+    double          near, far;
+    double          angle;
+    double          position[3];
+    double          focus[3];
+    double          up[3];
+    Matrix          ct;
+    Matrix          vt;
+    Matrix          dt;
+    Matrix          tt;
+
+
+    void          ViewTransform(void) 
+    {
+      vt.A[0][0] = cotan(angle/2);
+      vt.A[0][1] = 0;
+      vt.A[0][2] = 0;
+      vt.A[0][3] = 0;
+
+      vt.A[1][0] = 0;
+      vt.A[1][1] = cotan(angle/2);
+      vt.A[1][2] = 0;
+      vt.A[1][3] = 0;
+
+      vt.A[2][0] = 0;
+      vt.A[2][1] = 0;
+      vt.A[2][2] = (far+near)/(far-near);
+      vt.A[2][3] = -1;
+
+      vt.A[3][0] = 0;
+      vt.A[3][1] = 0;
+      vt.A[3][2] = (2*far*near)/(far-near);
+      vt.A[3][3] = 0;
+    };
+
+
+    void          CameraTransform(double *v1, double *v2, double *v3, double *o) 
+    {
+      ct.A[0][0] = v1[0];
+      ct.A[0][1] = v2[0];
+      ct.A[0][2] = v3[0];
+      ct.A[0][3] = 0;
+
+      ct.A[1][0] = v1[1];
+      ct.A[1][1] = v2[1];
+      ct.A[1][2] = v3[1];
+      ct.A[1][3] = 0;
+
+      ct.A[2][0] = v1[2];
+      ct.A[2][1] = v2[2];
+      ct.A[2][2] = v3[2];
+      ct.A[2][3] = 0;
+
+      double t[3];
+      for (int i = 0; i < 3; i++) t[i] = 0-o[i];
+
+      ct.A[3][0] = dotProduct(v1,t);
+      ct.A[3][1] = dotProduct(v2,t);
+      ct.A[3][2] = dotProduct(v3,t);
+      ct.A[3][3] = 1;
+
+    };
+
+
+
+    void          DeviceTransform(double *A) 
+    {
+
+      double x = (1000*(A[0]+1))/2;
+      double y = (1000*(A[1]+1))/2;
+      double z = A[2];
+      dt.A[0][0] = 1000/2;
+      dt.A[0][1] = 0;
+      dt.A[0][2] = 0;
+      dt.A[0][3] = 0;
+
+      dt.A[1][0] = 0;
+      dt.A[1][1] = 1000/2;
+      dt.A[1][2] = 0;
+      dt.A[1][3] = 0;
+
+      dt.A[2][0] = 0;
+      dt.A[2][1] = 0;
+      dt.A[2][2] = 1;
+      dt.A[2][3] = 0;
+
+      dt.A[3][0] = 1000/2;
+      dt.A[3][1] = 1000/2;
+      dt.A[3][2] = 0;
+      dt.A[3][3] = 1;
+    };
+};
+
 double ceil441(double f)
 {
     return ceil(f-0.00001);
@@ -44,15 +149,6 @@ WriteImage(vtkImageData *img, const char *filename)
    writer->Delete();
 }
 
-double cotan(double deg)
-{
-  return 1/tan(deg);
-}
-
-double dotProduct(double *A, double *B)
-{
-  return A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
-}
 
 void crossProduct(double *A, double *B, double *AB)
 {
@@ -95,6 +191,7 @@ class Screen
       double *zbuffer;
       int width, height;
       LightingParameters lp;
+      Camera c;
 
       void setRed(double r, int x, int y)
       {
@@ -132,9 +229,11 @@ class Screen
       {
         //View direction is going to be [0,0,-1];//jk not really
         double V[3];
-        V[0] = 0;
-        V[1] = 0;
-        V[2] = 1;
+
+        V[0] = c.position[0] - c.focus[0];
+        V[1] = c.position[1] - c.focus[1];
+        V[2] = c.position[2] - c.focus[2];
+        normalize(V);
         double R[3];
         R[0] = 2 * dotProduct(lp.lightDir,normal)*normal[0]-lp.lightDir[0];
         R[1] = 2 * dotProduct(lp.lightDir,normal)*normal[1]-lp.lightDir[1];
@@ -147,7 +246,7 @@ class Screen
         double diffuse = calculateDiffuse(normal);
         double specular = fmax(0,pow(calculateSpecular(normal),lp.alpha));
         double shading = lp.Ka + lp.Kd*diffuse + lp.Ks*specular;
-        return 1;//shading;
+        return shading;
       }
 
       void setColor(double x, double y, Point v1, Point v2, Point v3)
@@ -161,8 +260,8 @@ class Screen
         double v6z = interpolate(v2.Z,v3.Z,v2.Y,v3.Y,y);
         double v4z = interpolate(v5z,v6z,v5x,v6x,x);
 
-        if ((v4z <= getZ(x,y) ))//I think I'm supposed to reverse this (I already did, it was originally <=)
-             return;
+         if ((v4z <= getZ(x,y) ))//I think I'm supposed to reverse this (I already did, it was originally <=)
+              return;
 
         setZ(x,y,v4z);
 
@@ -200,6 +299,10 @@ class Screen
         }
 };
 
+
+
+
+
 void writeFlatBottom(Point v1, Point v2, Point v3, Screen screen)
 {
     double leftslope, rightslope, li, ri, leftend, rightend;
@@ -229,8 +332,8 @@ void writeFlatBottom(Point v1, Point v2, Point v3, Screen screen)
         if (rightslope == 0) rightend = v3.X;
         else rightend = (y - ri) / rightslope;
 
-        if (ceil441(leftend) == floor(rightend) && (leftend >= 0 && leftend < screen.width))
-            screen.setColor(ceil(leftend),y,v1,v2,v3);
+        if (ceil441(leftend) == floor441(rightend) && (leftend >= 0 && leftend < screen.width))
+            screen.setColor(ceil441(leftend),y,v1,v2,v3);
 
         for (int x = ceil441(leftend); x <= floor441(rightend); x++)
         {
@@ -377,100 +480,8 @@ void depositTriangle(Triangle i, Screen screen)
 
 
 
-class Camera
-{
-  public:
-    double          near, far;
-    double          angle;
-    double          position[3];
-    double          focus[3];
-    double          up[3];
-    Matrix          ct;
-    Matrix          vt;
-    Matrix          dt;
-    Matrix          tt;
 
 
-    void          ViewTransform(void) 
-    {
-      vt.A[0][0] = cotan(angle/2);
-      vt.A[0][1] = 0;
-      vt.A[0][2] = 0;
-      vt.A[0][3] = 0;
-
-      vt.A[1][0] = 0;
-      vt.A[1][1] = cotan(angle/2);
-      vt.A[1][2] = 0;
-      vt.A[1][3] = 0;
-
-      vt.A[2][0] = 0;
-      vt.A[2][1] = 0;
-      vt.A[2][2] = (far+near)/(far-near);
-      vt.A[2][3] = -1;
-
-      vt.A[3][0] = 0;
-      vt.A[3][1] = 0;
-      vt.A[3][2] = (2*far*near)/(far-near);
-      vt.A[3][3] = 0;
-    };
-
-
-    void          CameraTransform(double *v1, double *v2, double *v3, double *o) 
-    {
-      ct.A[0][0] = v1[0];
-      ct.A[0][1] = v2[0];
-      ct.A[0][2] = v3[0];
-      ct.A[0][3] = 0;
-
-      ct.A[1][0] = v1[1];
-      ct.A[1][1] = v2[1];
-      ct.A[1][2] = v3[1];
-      ct.A[1][3] = 0;
-
-      ct.A[2][0] = v1[2];
-      ct.A[2][1] = v2[2];
-      ct.A[2][2] = v3[2];
-      ct.A[2][3] = 0;
-
-      double t[3];
-      for (int i = 0; i < 3; i++) t[i] = 0-o[i];
-
-      ct.A[3][0] = dotProduct(v1,t);
-      ct.A[3][1] = dotProduct(v2,t);
-      ct.A[3][2] = dotProduct(v3,t);
-      ct.A[3][3] = 1;
-
-    };
-
-
-
-    void          DeviceTransform(double *A) 
-    {
-
-      double x = (1000*(A[0]+1))/2;
-      double y = (1000*(A[1]+1))/2;
-      double z = A[2];
-      dt.A[0][0] = 1000/2;
-      dt.A[0][1] = 0;
-      dt.A[0][2] = 0;
-      dt.A[0][3] = 0;
-
-      dt.A[1][0] = 0;
-      dt.A[1][1] = 1000/2;
-      dt.A[1][2] = 0;
-      dt.A[1][3] = 0;
-
-      dt.A[2][0] = 0;
-      dt.A[2][1] = 0;
-      dt.A[2][2] = 1;
-      dt.A[2][3] = 0;
-
-      dt.A[3][0] = 1000/2;
-      dt.A[3][1] = 1000/2;
-      dt.A[3][2] = 0;
-      dt.A[3][3] = 1;
-    };
-};
 
 //calculate the camera frame somehow
 
@@ -537,7 +548,13 @@ GetCamera(int frame, int nframes)
     // cerr<<"v3 " << v3[0] << " "<<v3[1]<<" "<<v3[2]<<endl;
     // cerr<<"o " << c.position[0] << " "<<c.position[1]<<" "<<c.position[2]<<endl;
 
-
+    // cerr<<"*****Camera Transform"<<endl;
+    // c.ct.Print(cerr);
+    // cerr<<"*****View Transform"<<endl;
+    // c.vt.Print(cerr);
+    // cerr<<"*****Device Transform"<<endl;
+    // c.dt.Print(cerr);
+    // cerr<<"*****Camera to view"<<endl;
 
     //dt ct vt
     //dt vt ct
@@ -546,17 +563,14 @@ GetCamera(int frame, int nframes)
     c.DeviceTransform(c.position);
     c.tt = c.tt.ComposeMatrices(c.ct,c.vt);
     // cerr<<"*********Combined ct with vt**************"<<endl;
-    // c.tt.Print(cerr);
+     //c.tt.Print(cerr);
           c.tt = c.tt.ComposeMatrices(c.tt,c.dt);
-    // cerr<<"*********Combined tt with dt***************"<<endl;
-    // c.tt.Print(cerr);
+     //cerr<<"*********Combined tt with dt***************"<<endl;
+     //c.tt.Print(cerr);
     //c.vt.Print(cerr);
     // camtr.Print(cerr);
     return c;
 }
-
-
-
 
 
 
@@ -594,16 +608,16 @@ Triangle toDeviceSpace(std::vector<Triangle>::iterator i, Camera c)
     // normalize(nPT3);
 
     t.setPT1(nPT1[0]/nPT1[3],nPT1[1]/nPT1[3],nPT1[2]/nPT1[3]);
-    t.setPT2(nPT2[0]/nPT2[3],nPT2[1]/nPT1[3],nPT2[2]/nPT1[3]);
-    t.setPT3(nPT3[0]/nPT3[3],nPT3[1]/nPT1[3],nPT3[2]/nPT1[3]);
+    t.setPT2(nPT2[0]/nPT2[3],nPT2[1]/nPT2[3],nPT2[2]/nPT2[3]);
+    t.setPT3(nPT3[0]/nPT3[3],nPT3[1]/nPT3[3],nPT3[2]/nPT3[3]);
     i->setColors(t.colors);
     i->setNormals(t.normals);
 
 
     // double T[4];
-    // T[0] = 1.11111;
-    // T[1] = 7.46665;
-    // T[2] = -8.9899;
+    // T[0] = 0;
+    // T[1] = 36.4645;
+    // T[2] = 36.4646;
     // T[3] = 1;
 
     // double nT[4];
@@ -640,16 +654,18 @@ vtkImageData *image = NewImage(1000, 1000);
 
   Camera c = GetCamera(curr,total);
   //I probably need to do something to get the right Matrix here to send into toDeviceSpace
+  screen.c = c;
   int e = 0;
   for(std::vector<Triangle>::iterator i = t.begin(); i != t.end(); ++i)
   {
     // if (e != 0)
     //   continue;
-    // // e++;
+     e++;
     Triangle t = toDeviceSpace(i,c);
+
     depositTriangle(t,screen);
-    if (t.getX1() > e)
-      e = t.getX1();
+    //if (t.getX1() > e)
+      //e = t.getX1();
 
      // cerr<<"************ t points **************"<<endl;
      // cerr<<t.getX1()<<" "<<t.getY1()<<" "<<t.getZ1()<<endl;
@@ -704,12 +720,14 @@ int main()
 
 //  cerr<<cotan(90/2);
 
-   makeImage(250,1000,triangles);
-   makeImage(500,1000,triangles);
-   makeImage(750,1000,triangles);
+//for (int i = 0; i < 1000; i++) makeImage(i,1000,triangles); //for movies
+
+    makeImage(250,1000,triangles);
+    makeImage(500,1000,triangles);
+    makeImage(750,1000,triangles);
 
 
-   // vtkImageData *image = NewImage(1000, 1000);
+   // vtkImageData *image = NewImage(z1000, 1000);
    // unsigned char *buffer =
    //   (unsigned char *) image->GetScalarPointer(0,0,0);
 
